@@ -11,6 +11,7 @@
 - **HTTP API**：`GET/POST/PATCH/DELETE /memory`、`POST /memory/consolidate`、`GET /memory/export`。
 - **斜線命令 `/memory`**：`list`（預設）／`remember <內容>`／`recall <查詢>`／`clear`。
 - **設定**：`memoryEnabled`、`memoryMaxItems`、`memorySummaryRounds`（皆為全局預設，種類檔案可覆蓋）。
+- **飽足度／親密度**：`GET /stats`、`POST /feed`、`POST /pat`；惰性成長、落盤 `stats.json`；記憶瀏覽器頁面可直接餵白飯／摸摸頭。
 
 上游完整說明：<https://github.com/PC2005-cloud/dsh-pet>
 
