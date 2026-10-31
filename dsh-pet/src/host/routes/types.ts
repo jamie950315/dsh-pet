@@ -12,6 +12,7 @@ import type { RouteResult } from '../http.ts';
 import type { PetImageRef } from '../image-attachment.ts';
 import type { LockStore } from '../lock.ts';
 import type { MemoryEngine } from '../memory/engine.ts';
+import type { StatsStore } from '../stats.ts';
 import type { FileLogger } from '../log-file.ts';
 import type { MenuRegistry } from '../menu.ts';
 import type { PlaybackStore } from '../playback.ts';
@@ -78,6 +79,8 @@ export interface PetRouteDeps {
   readonly todos: TodoStore;
   /** 长期记忆引擎（ojin 合并）。 */
   readonly memory: MemoryEngine;
+  /** 飽足度／親密度儲存（ojin 合併）。 */
+  readonly stats: StatsStore;
   /** 工作状态联动快照。 */
   readonly workStatus: WorkStatusStore;
   /** 外部写入用的固定会话 id。 */

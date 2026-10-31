@@ -48,6 +48,9 @@ export const MEMORY_VIEW_HTML = String.raw`<!doctype html>
   </div>
   <div class="grow"></div>
   <select id="pet"></select>
+  <span id="stats" class="sub"></span>
+  <button id="feed">餵白飯</button>
+  <button id="pat">摸摸頭</button>
   <input id="q" placeholder="搜尋記憶…" style="width:170px">
   <button id="consolidate">重整</button>
   <button id="export">匯出</button>
@@ -113,6 +116,14 @@ export const MEMORY_VIEW_HTML = String.raw`<!doctype html>
       btn.onclick = function () { remove(btn.getAttribute('data-del')); };
     });
   }
+  function loadStats() {
+    if (!petId) return;
+    api('/stats?pet=' + encodeURIComponent(petId)).then(function (data) {
+      if (!data || data.ok === false) return;
+      var el = document.getElementById('stats');
+      el.textContent = '親密度 ' + Math.round(data.stats.affinity) + '（' + data.affinityLabel + '）· 飽足 ' + Math.round(data.stats.hunger) + '（' + data.hungerLabel + '）';
+    });
+  }
   function load() {
     if (!petId) return;
     var q = document.getElementById('q').value.trim();
@@ -141,11 +152,18 @@ export const MEMORY_VIEW_HTML = String.raw`<!doctype html>
       petId = pets[0];
       select.innerHTML = pets.map(function (id) { return '<option value="' + esc(id) + '">' + esc(id) + '</option>'; }).join('');
       select.value = petId;
-      select.onchange = function () { petId = select.value; load(); };
+      select.onchange = function () { petId = select.value; load(); loadStats(); };
       load();
+      loadStats();
     });
   }
   document.getElementById('q').oninput = load;
+  document.getElementById('feed').onclick = function () {
+    api('/feed?pet=' + encodeURIComponent(petId), { method: 'POST' }).then(function (r) { toast(r && r.line ? r.line : '餵食完成'); loadStats(); });
+  };
+  document.getElementById('pat').onclick = function () {
+    api('/pat?pet=' + encodeURIComponent(petId), { method: 'POST' }).then(function (r) { toast(r && r.line ? r.line : '摸摸完成'); loadStats(); });
+  };
   document.getElementById('consolidate').onclick = function () {
     api('/memory/consolidate?pet=' + encodeURIComponent(petId), { method: 'POST' })
       .then(function (r) { toast(r && r.merged ? ('合併 ' + r.merged + ' 條') : '已重整'); load(); });

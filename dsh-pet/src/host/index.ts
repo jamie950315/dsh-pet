@@ -17,6 +17,7 @@ import { createDesktopHelper } from './plugin/desktop-helper.ts';
 import { createBalancePoll } from './plugin/balance-poll.ts';
 import { createChatMemory } from './plugin/chat-memory.ts';
 import { createMemoryEngine } from './memory/engine.ts';
+import { createStatsStore } from './stats.ts';
 import { createSessionNotify } from './plugin/session-notify.ts';
 import { createPetLookup } from './plugin/pet-lookup.ts';
 import { createDownloadReport } from './plugin/download-report.ts';
@@ -52,6 +53,8 @@ export function apply(ctx: any): void {
   } = setup;
   // 长期记忆引擎（ojin 合并）：与对话轮记忆分开落盘，见 ./memory/engine。
   const memory = createMemoryEngine({ ctx, configPaths, log, userRoot });
+  // 飽足度／親密度：與記憶同一個使用者資料根，單獨落 stats.json。
+  const stats = createStatsStore({ file: join(userRoot, 'stats.json'), log });
   const workStatusBridge = createWorkStatusBridge({ state, workStatus });
   const { publishWorkStatus, stopWorkStatusFlush } = workStatusBridge;
   const downloadReport = createDownloadReport({
@@ -109,6 +112,7 @@ export function apply(ctx: any): void {
     ctx,
     todos,
     memory,
+    stats,
     // 语音合成：缓存落 userRoot，失败只留日志，不打断宿主
     voice: createVoiceService({ userRoot, log }),
     // 语音识别：能力来自宿主（DSH 的 speechToText），没启用时服务自己在调用时回 unsupported
