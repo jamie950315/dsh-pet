@@ -8,6 +8,7 @@ import { readAllConfig } from './config.ts';
 import { createHttpRoute, registerHttpRoute } from './plugin/http-route.ts';
 import { registerLifecycle } from './plugin/lifecycle.ts';
 import { registerChatCommand } from './plugin/command-chat.ts';
+import { registerMemoryCommand } from './plugin/command-memory.ts';
 import { registerPetCommand } from './plugin/command-pet.ts';
 import { registerLoops } from './plugin/loops.ts';
 import { registerBalanceCommand } from './plugin/command-balance.ts';
@@ -15,6 +16,7 @@ import { registerSessionWatch } from './plugin/session-watch.ts';
 import { createDesktopHelper } from './plugin/desktop-helper.ts';
 import { createBalancePoll } from './plugin/balance-poll.ts';
 import { createChatMemory } from './plugin/chat-memory.ts';
+import { createMemoryEngine } from './memory/engine.ts';
 import { createSessionNotify } from './plugin/session-notify.ts';
 import { createPetLookup } from './plugin/pet-lookup.ts';
 import { createDownloadReport } from './plugin/download-report.ts';
@@ -48,6 +50,8 @@ export function apply(ctx: any): void {
     EXTERNAL_WORK_SESSION,
     nextExternalWorkSeq,
   } = setup;
+  // 长期记忆引擎（ojin 合并）：与对话轮记忆分开落盘，见 ./memory/engine。
+  const memory = createMemoryEngine({ ctx, configPaths, log, userRoot });
   const workStatusBridge = createWorkStatusBridge({ state, workStatus });
   const { publishWorkStatus, stopWorkStatusFlush } = workStatusBridge;
   const downloadReport = createDownloadReport({
@@ -72,7 +76,7 @@ export function apply(ctx: any): void {
     notifyActivityTimers,
     scheduleCompletionNotify,
   } = sessionNotify;
-  const chatMemory = createChatMemory({ ctx, configPaths, log, memeDirsFor, playback, state, userRoot });
+  const chatMemory = createChatMemory({ ctx, configPaths, log, memeDirsFor, playback, state, userRoot, memory });
   const { lastWhisperAt, publishWhisper, publishSleepTalk, chatWithPet, getActivePetId, setActivePetId } = chatMemory;
 
   const balancePoll = createBalancePoll({ ctx, configPaths, getActivePetId, log, state });
@@ -104,6 +108,7 @@ export function apply(ctx: any): void {
     ...sessionNotify,
     ctx,
     todos,
+    memory,
     // 语音合成：缓存落 userRoot，失败只留日志，不打断宿主
     voice: createVoiceService({ userRoot, log }),
     // 语音识别：能力来自宿主（DSH 的 speechToText），没启用时服务自己在调用时回 unsupported
@@ -149,6 +154,9 @@ export function apply(ctx: any): void {
 
   registerChatCommand({ ctx, chatWithPet, log, publishWhisper, resolveActivePetId, sleep, sleepRefusalText });
 
+  // 长期记忆：/memory list | remember | recall | clear
+  registerMemoryCommand({ ctx, configPaths, log, memory, resolveActivePetId, state });
+
   // 待办提醒：随插件生命周期起停；锁被第三方持有时由 pickReminderSpeaker 跳过该宠物。
   // 播报开关现读现用：改配置后下一次提醒即生效，不必重启。
   registerTodoReminders({
@@ -175,5 +183,8 @@ export function apply(ctx: any): void {
   });
 
   // 路由就绪后拉起桌面 Helper（Electron 缺失时仅告警，不影响 DSH 与浏览器 overlay）
+  // 长期记忆维护：每 6 小时合并／衰减一次，随插件卸载停止。
+  ctx.effect(() => memory.startMaintenance(), 'dsh-pet: memory maintenance');
+
   startHelper();
 }

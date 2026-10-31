@@ -11,6 +11,7 @@ import type { ConfigPaths } from '../config.ts';
 import type { RouteResult } from '../http.ts';
 import type { PetImageRef } from '../image-attachment.ts';
 import type { LockStore } from '../lock.ts';
+import type { MemoryEngine } from '../memory/engine.ts';
 import type { FileLogger } from '../log-file.ts';
 import type { MenuRegistry } from '../menu.ts';
 import type { PlaybackStore } from '../playback.ts';
@@ -75,6 +76,8 @@ export interface PetRouteDeps {
   readonly state: PollStateStore;
   /** 待办清单（单个 JSON 文件，读改写串行）。 */
   readonly todos: TodoStore;
+  /** 长期记忆引擎（ojin 合并）。 */
+  readonly memory: MemoryEngine;
   /** 工作状态联动快照。 */
   readonly workStatus: WorkStatusStore;
   /** 外部写入用的固定会话 id。 */

@@ -83,6 +83,12 @@ function createMemory(
       },
     },
     userRoot: ws.userRoot,
+    // 长期记忆引擎在对话测试里用不上：给一个不注入、不落盘的替身。
+    memory: {
+      profileContextFor: async () => '',
+      contextFor: async () => '',
+      afterExchange: async () => {},
+    },
   } as unknown as ChatMemoryInput);
 }
 

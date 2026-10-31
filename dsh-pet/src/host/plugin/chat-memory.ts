@@ -20,6 +20,7 @@ import { SLEEP_TALK_INSTRUCTION } from '../whisper.ts';
 import { pickVoiceSurface, type VoiceTarget } from '../surface.ts';
 import type { HostSetup } from './setup.ts';
 import type { HostContext } from './context.ts';
+import type { MemoryEngine } from '../memory/engine.ts';
 
 /** 这一句该由哪一端念：取宠物实例的 display 推导（桌面优先）；两端都不显示时为 `undefined`。 */
 function voiceTargetFor(pet: Record<string, unknown>): VoiceTarget | undefined {
@@ -35,13 +36,13 @@ export type ChatMemoryInput = {
   Pick<HostSetup, 'memeDirsFor'> &
   Pick<HostSetup, 'playback'> &
   Pick<HostSetup, 'state'> &
-  Pick<HostSetup, 'userRoot'>;
+  Pick<HostSetup, 'userRoot'> & { readonly memory: MemoryEngine };
 
 /**
  * 创建对话与记忆。
  */
 export function createChatMemory(deps: ChatMemoryInput) {
-  const { ctx, configPaths, log, memeDirsFor, playback, state, userRoot } = deps;
+  const { ctx, configPaths, log, memeDirsFor, playback, state, userRoot, memory } = deps;
   // 命令「当前桌宠」（/pet 选择、/chat 使用）：全局单值不分会话；进程内内存，重启回默认第一只
   let activePetId = '';
 
@@ -142,7 +143,9 @@ export function createChatMemory(deps: ChatMemoryInput) {
     // 关掉就不写 voiceTo（叶子不带这个键 = 谁都不念），气泡照旧弹。
     const whisperVoiceOn = cfg.main?.voiceWhisperEnabled === true;
     const target = kind === 'whisper' && !whisperVoiceOn ? undefined : (voiceTo ?? voiceTargetFor(found.pet));
-    const system = petSystemPrompt(found);
+    const baseSystem = petSystemPrompt(found);
+    const profileBlock = await memory.profileContextFor(found);
+    const system = profileBlock === '' ? baseSystem : baseSystem + '\n\n' + profileBlock;
     // 池只算一次：点名的图与随机抽图共用同一份（含文件存在性判定）。
     const pool = readMemePool(found.conf.memes, memeDirsFor(found.entry));
     // 点名了却没命中 = 配置写错或图已被删：明确失败，不静默换成另一张（点了 A 却看到 B 会以为坏了）。
@@ -231,7 +234,9 @@ export function createChatMemory(deps: ChatMemoryInput) {
       if (!found) return { ok: false, reason: 'unknown-pet', message: '没有这只桌宠：' + petId };
       const rounds = memoryRounds(found.conf);
       // 人设：实例级 whisperPrompt 优先，没写回落所属条目（与碎碎念同一拼装）
-      const system = petSystemPrompt(found);
+      const baseSystem = petSystemPrompt(found);
+      const memoryBlock = await memory.contextFor(found, text);
+      const system = memoryBlock === '' ? baseSystem : baseSystem + '\n\n' + memoryBlock;
       // 配图：开关关闭 → 空池（指令与解析都不介入）；目录链按所属条目取。
       // 张数上限（chatImageLimit，0 = 不限制）：整张清单每条消息都要附，截断后费用上限可控。
       const pool =
@@ -286,6 +291,8 @@ export function createChatMemory(deps: ChatMemoryInput) {
         ...(generated.action ? { action: generated.action } : {}),
       });
       await writeMemory(mem);
+      // 长期记忆：不阻塞回复，抽取／摘要／落盘都在后台跑。
+      void memory.afterExchange(petId, found, text, generated.text, entry.messages);
       // 动作先写：与 POST /anim 同一条写回链路（记录 + anim 叶子），渲染端据此播放并回报执。
       if (generated.action !== undefined) {
         const record = playback.create(petId, generated.action);

@@ -161,6 +161,16 @@ export function topFieldValid(key: string, value: unknown): boolean {
       const n = Number(value);
       return Number.isFinite(n) && n >= 0;
     }
+    case 'memoryEnabled':
+      return typeof value === 'boolean';
+    case 'memoryMaxItems': {
+      const n = Number(value);
+      return Number.isFinite(n) && n >= 0;
+    }
+    case 'memorySummaryRounds': {
+      const n = Number(value);
+      return Number.isFinite(n) && n >= 0;
+    }
     case 'notificationsEnabled':
       return typeof value === 'boolean';
     case 'clickSoundEnabled':
